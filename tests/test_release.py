@@ -24,15 +24,24 @@ TEXT_SUFFIXES = {".py", ".sh", ".md", ".txt", ".json", ".yaml", ".yml"}
 FORBIDDEN_BINARY = {".pt", ".pth", ".ckpt", ".safetensors", ".tar", ".log",
                     ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".xlsx", ".csv", ".pdf"}
 FORBIDDEN_NAME_PARTS = ("draw", "plot", "fig", "compose", "workbook", "writeback", "rerun")
+# Leakage tokens must never appear anywhere, including generated data files.
 FORBIDDEN_TOKENS = (
-    "anyattack", "notice", "upstream-root", "upstream_root", "/new_data/", "/export/share",
-    "dycpu", "yifei", "junhong", "/home/", "未复现", "未验证", "not reproduced",
+    "anyattack", "upstream-root", "upstream_root", "/new_data/", "/export/share",
+    "dycpu", "yifei", "junhong", "/home/",
     "minigpt", "attacked_model",
+)
+# Prose tokens apply to source and documentation; machine-generated manifests
+# embed third-party captions whose ordinary English wording must not be gated.
+FORBIDDEN_PROSE_TOKENS = ("notice", "未复现", "未验证", "not reproduced")
+MANIFEST_FILES = (
+    "coco_caption_pairs.json", "coco_retrieval_pairs.json",
+    "flickr30k_pairs.json", "snli_ve_pairs.json",
 )
 
 
 def all_files():
-    return [path for path in ROOT.rglob("*") if path.is_file()]
+    return [path for path in ROOT.rglob("*")
+            if path.is_file() and ".git" not in path.parts]
 
 
 def test_flat_layout_matches_reference():
@@ -65,15 +74,39 @@ def test_no_weights_data_logs_or_figures():
 def test_no_private_paths_or_attribution_tokens():
     offenders = []
     for path in all_files():
-        if path.suffix.lower() not in TEXT_SUFFIXES:
-            continue
-        if path.name == "test_release.py":
+        if path.suffix.lower() not in TEXT_SUFFIXES or path.name == "test_release.py":
             continue
         text = path.read_text(encoding="utf-8", errors="ignore").lower()
         for token in FORBIDDEN_TOKENS:
             if token in text:
                 offenders.append((path.relative_to(ROOT), token))
+        if path.parent.name != "manifests":
+            for token in FORBIDDEN_PROSE_TOKENS:
+                if token in text:
+                    offenders.append((path.relative_to(ROOT), token))
     assert not offenders, offenders
+
+
+def test_archived_manifests_are_fixed_1000_pair_records():
+    import json
+    manifest_dir = ROOT / "manifests"
+    assert sorted(p.name for p in manifest_dir.glob("*.json")) == list(MANIFEST_FILES)
+    shared_hosts = None
+    for name in MANIFEST_FILES:
+        rows = json.loads((manifest_dir / name).read_text(encoding="utf-8"))
+        assert len(rows) == 1000
+        assert [row["id"] for row in rows] == [f"{index:05d}" for index in range(1000)]
+        hosts = [row["host"] for row in rows]
+        assert len(set(hosts)) == 1000 and hosts == sorted(hosts)
+        for row in rows:
+            assert set(row) == {"id", "host", "target", "captions"}
+            assert not row["target"].startswith("/") and ".." not in row["target"]
+            assert row["captions"] and all(isinstance(text, str) and text
+                                           for text in row["captions"])
+        if shared_hosts is None:
+            shared_hosts = hosts
+        else:
+            assert hosts == shared_hosts, "all benchmarks share one host sequence"
 
 
 def test_all_python_compiles():

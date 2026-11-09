@@ -36,6 +36,7 @@ classification.py      visual entailment evaluation
 demo.py                single-pair demonstration
 sweep.py               parameter sweeps / ablations
 configs/paper.json     default hyper-parameters
+manifests/             archived fixed 1000-pair evaluation records
 ```
 
 ## Data
@@ -44,14 +45,28 @@ Prepare the datasets separately; no data, weights or logs are included.
 
 - MSCOCO and Flickr30K can be obtained through the LAVIS benchmark downloader:
   <https://opensource.salesforce.com/LAVIS//latest/benchmark>
-- ImageNet is required for host images.
+- Host images come from the 10-class ImageFolder-ordered ImageNet subset
+  distributed as imagenette (3,925 images in WNID subdirectories):
+  <https://github.com/fastai/imagenette>. The manifests reference these images
+  by relative path, and the full 50,000-image ImageNet validation set is not
+  required.
+- SNLI-VE target images are Flickr30K files; the dataset is described at
+  <https://github.com/necla-ml/SNLI-VE>.
 - Optional pre-training shards (WebDataset `.tar`) can be built from LAION-400M:
   <https://github.com/rom1504/img2dataset/blob/main/dataset_examples/laion400m.md>
 - LAVIS: <https://github.com/salesforce/LAVIS>
 
 ## Usage
 
-### 1. Build the fixed pair manifest
+### 1. Fixed pair manifests
+
+The four archived manifests under `manifests/` are the study's frozen
+evaluation records. Each contains 1,000 rows with zero-padded identifiers
+`00000`-`00999`; all benchmarks share one host sequence and differ only in
+their targets. See [`manifests/README.md`](manifests/README.md) for the
+annotation sources, SHA-256 checksums and reproduction details.
+
+To regenerate a manifest from the same inputs, run:
 
 ```bash
 python prepare_pairs.py \
@@ -60,7 +75,9 @@ python prepare_pairs.py \
     --output manifests/coco_retrieval_pairs.json
 ```
 
-The manifest stores relative paths and always contains 1000 entries.
+Hosts are the lexicographically sorted image files of the host root
+(ImageFolder order) and targets follow the annotation file order; the output
+is deterministic without any random seed.
 
 ### 2. Pre-train the decoder
 

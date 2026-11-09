@@ -1,7 +1,11 @@
-"""Build a portable manifest of fixed host-target pairs."""
+"""Build a portable manifest of fixed host-target pairs.
+
+Hosts are the first ``--count`` images of the lexicographically sorted host
+root (ImageFolder order), so the same root always yields the same pairs
+without any random state. Targets follow the annotation file order.
+"""
 import argparse
 import json
-import random
 from pathlib import Path
 
 from util import write_json
@@ -16,7 +20,6 @@ def parse_args():
     parser.add_argument("--host_root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--count", type=int, default=1000)
-    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--existing_mapping", type=Path,
                         help="reuse clean_path entries from an earlier mapping")
     parser.add_argument("--original_host_root", type=Path,
@@ -48,7 +51,7 @@ def select_hosts(args):
                    if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES)
     if len(paths) < args.count:
         raise ValueError(f"host root contains only {len(paths)} images, need {args.count}")
-    return random.Random(args.seed).sample(paths, args.count), root
+    return paths[:args.count], root
 
 
 def main():
