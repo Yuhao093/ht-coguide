@@ -1,0 +1,5 @@
+-r requirements.txt
+timm>=0.9
+webdataset>=0.2
+salesforce-lavis==1.0.2
+omegaconf>=2.3

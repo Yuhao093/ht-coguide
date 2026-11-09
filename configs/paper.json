@@ -1,0 +1,19 @@
+{
+  "project": "HT-CoGuide",
+  "evaluation_pairs": 1000,
+  "generation_batch_size": 50,
+  "training_batch_size_per_process": 74,
+  "epochs": 20,
+  "learning_rate": 0.0001,
+  "epsilon": 0.06274509803921569,
+  "selection_ratio": 0.35,
+  "attenuation": 0.385,
+  "host_weight": 0.30,
+  "target_weight": 0.25,
+  "decoder_weight": 0.45,
+  "regularization_weight": 0.20,
+  "contrastive_temperature": 0.07,
+  "modes": ["triple", "host_target", "host_only", "target_only", "noise_only", "random_topk", "full_image"],
+  "target_encoder": "ViT-B/32",
+  "checkpoint_epoch_label": "epoch08"
+}
